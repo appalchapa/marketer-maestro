@@ -1,5 +1,6 @@
 export type RunMode = "local" | "live" | "bedrock";
 export type DataMode = "live" | "demo";
+export type StorageMode = "file" | "upstash";
 
 export interface AppConfig {
   mode: RunMode;
@@ -8,6 +9,9 @@ export interface AppConfig {
   groqApiKey?: string;
   simulateGeminiFail: boolean;
   toggles: { cache: boolean; timeoutMs: number };
+  storage: StorageMode;
+  upstashUrl?: string;
+  upstashToken?: string;
 }
 
 export function loadConfig(): AppConfig {
@@ -18,5 +22,8 @@ export function loadConfig(): AppConfig {
     groqApiKey: process.env.GROQ_API_KEY || undefined,
     simulateGeminiFail: (process.env.MAESTRO_SIMULATE_GEMINI_FAIL || "").toLowerCase() === "true",
     toggles: { cache: true, timeoutMs: Number(process.env.MAESTRO_TIMEOUT_MS ?? 45000) },
+    storage: (process.env.STORAGE as StorageMode) ?? "file",
+    upstashUrl: process.env.UPSTASH_REDIS_REST_URL || undefined,
+    upstashToken: process.env.UPSTASH_REDIS_REST_TOKEN || undefined,
   };
 }

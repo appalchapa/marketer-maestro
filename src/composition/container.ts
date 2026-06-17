@@ -10,6 +10,7 @@ import { GeminiProvider } from "@adapters/model/providers/gemini.provider";
 import { GroqProvider } from "@adapters/model/providers/groq.provider";
 import { composePipeline } from "@adapters/model/pipeline/compose-pipeline";
 import { FileUserStore } from "@adapters/user-store/file-user-store.adapter";
+import { UpstashUserStore } from "@adapters/user-store/upstash-user-store.adapter";
 import { FileExampleStore } from "@adapters/example-store/file-example-store.adapter";
 import { Maestro } from "@core/orchestration/maestro";
 
@@ -49,7 +50,12 @@ export function getContainer(): Container {
     cacheEnabled: () => runtime.cacheEnabled,
     timeoutMs: cfg.toggles.timeoutMs,
   });
-  const userStore = new FileUserStore();
+  let userStore: UserStore;
+  if (cfg.storage === "upstash" && cfg.upstashUrl && cfg.upstashToken) {
+    userStore = new UpstashUserStore(cfg.upstashUrl, cfg.upstashToken);
+  } else {
+    userStore = new FileUserStore();   // default; also the safe fallback if creds are absent
+  }
   const exampleStore = new FileExampleStore();
   const maestro = new Maestro(modelProvider, userStore, bus, exampleStore);
 

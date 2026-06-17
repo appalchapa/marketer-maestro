@@ -133,3 +133,14 @@ Word brief as a schedule table. Task ids are stable so dependencies survive edit
   ("rate limit reached", "timed out", "auth/key error", "service error") instead of dumping the
   full provider error JSON. So a Gemini 429 reads: "Gemini unavailable (rate limit reached).
   Switching to Groq…".
+
+## 1.5.0 — Serverless storage adapter (Upstash), config-selectable
+
+- New UpstashUserStore behind the existing UserStore port, for serverless/cloud (Vercel/AWS)
+  where the local filesystem isn't persistent. Sessions stored at session:{id} with index sets
+  for fast per-user / global listing.
+- Storage is config-selected: STORAGE=file (default, unchanged) or STORAGE=upstash with
+  UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN. Core untouched; file mode behaves exactly
+  as before and is the safe fallback if Upstash creds are absent.
+- Note: the example/flywheel store still uses files (capture-only, non-fatal on serverless);
+  it will get a serverless adapter when cross-session learning is built.
