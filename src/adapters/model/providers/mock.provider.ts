@@ -71,6 +71,15 @@ export class MockProvider implements ModelProvider {
             { tone: "apologetic", subject: "Let's make this right", body: "We're sorry — here's priority support and a credit." },
             { tone: "reassuring", subject: "We're on it", body: "Your issue matters; here's how we're helping." } ] },
         ]});
+      case "variant": {
+        const toneMatch = /Tone:\s*([^\n]+)/.exec(req.prompt);
+        const tone = (toneMatch ? toneMatch[1] : "warm").trim();
+        return JSON.stringify({
+          subject: `A ${tone} note just for you`,
+          body: `Here's a ${tone} message tailored to this segment, with a clear next step.`,
+          ctaText: "Learn More",
+        });
+      }
       case "attribution":
         return JSON.stringify({ params: [
           { key: "utm_source", value: "maestro", purpose: "Identifies the campaign tool as the traffic source." },

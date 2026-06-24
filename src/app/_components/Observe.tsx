@@ -75,12 +75,27 @@ export default function Observe({ username, setUsername }: { username: string; s
 
 function ratingsSummary(s: any) {
   const r = Object.values((s.ratings || {}) as Record<string, any>);
+  const scored = r.filter((x) => typeof x.score === "number");
+  const avgScore = scored.length ? scored.reduce((a, x) => a + x.score, 0) / scored.length : null;
   return {
-    up: r.filter((x) => x.thumb === "up").length,
-    down: r.filter((x) => x.thumb === "down").length,
+    avgScore,                                    // null if no numeric ratings yet
+    rated: scored.length,
     edited: r.filter((x) => x.edited).length,
     revisions: r.reduce((a, x) => a + (x.revisions || 0), 0),
   };
+}
+
+// Autonomous score (0-100): how independently the agent succeeded, from data we already capture.
+// Blends acceptance (not edited), low revisions, and human rating. No AI self-grading.
+function autonomyScore(a: { n: number; edited: number; rev: number; scoreSum: number; scoreCount: number }): number | null {
+  if (!a.n) return null;
+  const acceptance = 1 - a.edited / a.n;                 // unedited drafts -> higher
+  const revisionPenalty = Math.min(1, a.rev / a.n / 3);  // ~3 revisions avg = full penalty
+  const revisionScore = 1 - revisionPenalty;
+  const ratingScore = a.scoreCount ? (a.scoreSum / a.scoreCount - 1) / 4 : 0.6; // 1-5 -> 0-1; neutral 0.6 if unrated
+  // weighted: acceptance 45%, revisions 25%, rating 30%
+  const blend = acceptance * 0.45 + revisionScore * 0.25 + ratingScore * 0.30;
+  return Math.round(blend * 100);
 }
 
 function Monitoring({ sessions, scope }: { sessions: any[]; scope: "user" | "all" }) {
@@ -103,7 +118,7 @@ function Monitoring({ sessions, scope }: { sessions: any[]; scope: "user" | "all
               </div>
               <div style={{ fontSize: 12.5, color: C.t2, textAlign: "right" }}>
                 <div>${sessCost(s).toFixed(6)} · {(s.events || []).length} calls</div>
-                <div>👍 {rs.up} · 👎 {rs.down} · ✏️ {rs.edited} edited · {rs.revisions} revisions</div>
+                <div>{rs.avgScore != null ? `★ ${rs.avgScore.toFixed(1)}/5 (${rs.rated} rated)` : "no ratings"} · ✏️ {rs.edited} edited · {rs.revisions} revisions</div>
               </div>
             </div>
             <button onClick={() => setOpen(open === s.id ? null : s.id)} style={{ marginTop: 8, fontSize: 12, border: 0, background: "transparent", color: C.purple, cursor: "pointer", padding: 0 }}>
@@ -126,15 +141,17 @@ function Monitoring({ sessions, scope }: { sessions: any[]; scope: "user" | "all
 }
 
 function aggregate(sessions: any[]) {
-  const agg: Record<string, { n: number; edited: number; up: number; down: number; rev: number; tokens: number; cost: number; latency: number; calls: number }> = {};
+  const agg: Record<string, { n: number; edited: number; scoreSum: number; scoreCount: number; rev: number; tokens: number; cost: number; latency: number; calls: number }> = {};
   for (const s of sessions) {
     for (const [k, r] of Object.entries((s.ratings || {}) as Record<string, any>)) {
-      agg[k] ??= { n: 0, edited: 0, up: 0, down: 0, rev: 0, tokens: 0, cost: 0, latency: 0, calls: 0 };
-      agg[k].n++; if (r.edited) agg[k].edited++; if (r.thumb === "up") agg[k].up++; if (r.thumb === "down") agg[k].down++; agg[k].rev += r.revisions || 0;
+      agg[k] ??= { n: 0, edited: 0, scoreSum: 0, scoreCount: 0, rev: 0, tokens: 0, cost: 0, latency: 0, calls: 0 };
+      agg[k].n++; if (r.edited) agg[k].edited++;
+      if (typeof r.score === "number") { agg[k].scoreSum += r.score; agg[k].scoreCount++; }
+      agg[k].rev += r.revisions || 0;
     }
     for (const e of (s.events || [])) {
       const k = e.component; if (!k) continue;
-      agg[k] ??= { n: 0, edited: 0, up: 0, down: 0, rev: 0, tokens: 0, cost: 0, latency: 0, calls: 0 };
+      agg[k] ??= { n: 0, edited: 0, scoreSum: 0, scoreCount: 0, rev: 0, tokens: 0, cost: 0, latency: 0, calls: 0 };
       agg[k].tokens += evTokens(e); agg[k].cost += e.costUsd || 0; agg[k].latency += e.latencyMs || 0; agg[k].calls++;
     }
   }
@@ -152,23 +169,26 @@ function Components({ sessions }: { sessions: any[] }) {
         <BarChart data={rows.map(([k, a]) => ({ label: k, value: a.tokens }))} />
       </div>
       <div style={card}>
-        <p style={label}>Edited rate by component (lower = better drafts)</p>
-        <BarChart data={rows.map(([k, a]) => ({ label: k, value: a.n ? Math.round((a.edited / a.n) * 100) : 0 }))} unit="%" />
+        <p style={label}>Autonomous score by component (higher = more independent success)</p>
+        <BarChart data={rows.map(([k, a]) => ({ label: k, value: autonomyScore(a) ?? 0 }))} unit="%" />
       </div>
       <div style={card}>
         <p style={label}>Per-component detail</p>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-          <thead><tr>{["Component", "Approved", "Edited %", "👍/👎", "Avg rev.", "Avg latency", "Tokens", "Cost"].map((h) => <th key={h} style={{ ...td, textAlign: "left", fontSize: 10.5, color: C.t3, textTransform: "uppercase", borderBottom: `1px solid ${C.line}` }}>{h}</th>)}</tr></thead>
-          <tbody>{rows.map(([k, a]) => (
+          <thead><tr>{["Component", "Approved", "Edited %", "Avg rating", "Autonomy", "Avg rev.", "Avg latency", "Tokens", "Cost"].map((h) => <th key={h} style={{ ...td, textAlign: "left", fontSize: 10.5, color: C.t3, textTransform: "uppercase", borderBottom: `1px solid ${C.line}` }}>{h}</th>)}</tr></thead>
+          <tbody>{rows.map(([k, a]) => {
+            const auto = autonomyScore(a);
+            return (
             <tr key={k}>
               <td style={{ ...td, fontWeight: 600 }}>{k}</td><td style={td}>{a.n}</td>
               <td style={td}>{a.n ? Math.round((a.edited / a.n) * 100) : 0}%</td>
-              <td style={td}>{a.up}/{a.down}</td>
+              <td style={td}>{a.scoreCount ? `${(a.scoreSum / a.scoreCount).toFixed(1)}/5` : "—"}</td>
+              <td style={{ ...td, fontWeight: 600, color: auto == null ? C.t3 : auto >= 70 ? C.green : auto >= 40 ? C.amber : C.red }}>{auto == null ? "—" : `${auto}%`}</td>
               <td style={td}>{a.n ? (a.rev / a.n).toFixed(1) : "0"}</td>
               <td style={td}>{a.calls ? Math.round(a.latency / a.calls) : 0}ms</td>
               <td style={td}>{a.tokens.toLocaleString()}</td><td style={td}>${a.cost.toFixed(6)}</td>
             </tr>
-          ))}</tbody>
+          );})}</tbody>
         </table>
       </div>
     </div>

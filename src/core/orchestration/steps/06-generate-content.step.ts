@@ -11,5 +11,5 @@ export async function generateContent(provider: ModelProvider, sessionId: string
     prompt: buildPrompt("content", { context, feedbackLine }),
   });
   const r = ContentSchema.safeParse(parseJsonLoose(res.text));
-  return r.success ? r.data : { offers: [{ segment: "Segment", variants: [{ tone: "warm", subject: "Hello", body: "fallback" }] }] };
+  return r.success ? r.data : { offers: [{ segment: "Segment", variants: [{ tone: "warm", subject: "Hello", body: "fallback", ctaText: "Learn More", ctaLink: "", imageUrl: "" }] }] };
 }

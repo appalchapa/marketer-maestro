@@ -122,7 +122,7 @@ export class Maestro {
   }
 
   // Approve the current stage (optionally with marketer edits), then generate the next.
-  async approve(sessionId: string, edited?: Partial<StageOutputs>, thumb?: "up" | "down"): Promise<Session | null> {
+  async approve(sessionId: string, edited?: Partial<StageOutputs>, thumb?: "up" | "down", score?: number): Promise<Session | null> {
     const s = await this.store.get(sessionId);
     if (!s) return null;
     const key = STAGES[s.stageIndex].key;
@@ -136,9 +136,9 @@ export class Maestro {
 
     // Efficacy signal: did the marketer hand-edit the AI draft? how many revisions?
     const wasEdited = JSON.stringify(s.drafts[key] ?? null) !== JSON.stringify((s.outputs as any)[key] ?? null);
-    const rating: StageRating = { thumb, edited: wasEdited, revisions: (s.feedbackHistory[key] ?? []).length };
+    const rating: StageRating = { thumb, score, edited: wasEdited, revisions: (s.feedbackHistory[key] ?? []).length };
     s.ratings[key] = rating;
-    s.audit.push({ at: Date.now(), action: `approve:${key}`, detail: `thumb=${thumb ?? "-"} edited=${wasEdited} revisions=${rating.revisions}` });
+    s.audit.push({ at: Date.now(), action: `approve:${key}`, detail: `score=${score ?? "-"} edited=${wasEdited} revisions=${rating.revisions}` });
 
     // Flywheel: capture the approved output as a future learning example.
     try {

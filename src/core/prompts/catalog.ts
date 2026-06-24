@@ -56,6 +56,14 @@ export const PROMPTS: Record<string, PromptEntry> = {
       '6-9 tasks covering implementing segments, writing/approving content, building flows, configuring attribution, QA, and launch. ' +
       'Use realistic owners (e.g. Marketing Ops, Content, Analytics, QA) and durations in days.',
   },
+  variant: {
+    version: "variant@v1",
+    system: "You write a single marketing message variant in a specified tone. JSON only.",
+    template:
+      'Segment: {segment}\nTone: {tone}\nContext: {context}{hint}\n\n' +
+      'Write ONE message in this tone. Return JSON: { "subject": string, "body": string, "ctaText": string }. ' +
+      'Keep subject under 60 chars, body 1-3 sentences, ctaText 2-4 words.',
+  },
   attribution: {
     version: "attribution@v1",
     system: "You define URL tracking parameters for campaign attribution. JSON only.",

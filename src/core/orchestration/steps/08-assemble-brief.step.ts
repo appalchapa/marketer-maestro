@@ -45,7 +45,11 @@ export async function assembleBrief(session: Session): Promise<Buffer> {
     children.push(h("Content offers (A/B)"));
     o.content.offers.forEach((off) => {
       children.push(bold(`Segment: ${off.segment}`));
-      off.variants.forEach((v, i) => children.push(p(`${String.fromCharCode(65 + i)} [${v.tone}] ${v.subject} — ${v.body}`)));
+      off.variants.forEach((v: any, i) => {
+        children.push(p(`${String.fromCharCode(65 + i)} [${v.tone}] ${v.subject} — ${v.body}`));
+        const extras = [v.ctaText && `CTA: ${v.ctaText}`, v.ctaLink && `→ ${v.ctaLink}`, v.imageUrl && `image: ${v.imageUrl}`].filter(Boolean).join("  ");
+        if (extras) children.push(p(`    ${extras}`));
+      });
     });
   }
   if (o.flows) {

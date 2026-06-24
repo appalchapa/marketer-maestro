@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 
 const mkId = () => "v_" + Math.random().toString(16).slice(2, 10);
-type Variant = { id?: string; tone: string; subject: string; body: string };
+type Variant = { id?: string; tone: string; subject: string; body: string; ctaText?: string; ctaLink?: string; imageUrl?: string };
 type Offer = { segment: string; variants: Variant[] };
 const C = { purple: "#534ab7", amber: "#ba7517", t3: "#8a8980", line: "rgba(0,0,0,.12)" };
 const inp: React.CSSProperties = { fontSize: 12.5, padding: "4px 7px", borderRadius: 6, border: `1px solid ${C.line}`, width: "100%", boxSizing: "border-box" };
@@ -62,6 +62,26 @@ export default function ContentEditor({ initial, attributes = [], onChange }: { 
   const delOffer = (i: number) => setOffers((p) => p.filter((_, j) => j !== i));
   const addOffer = () => setOffers((p) => [...p, { segment: "New segment", variants: [{ id: mkId(), tone: "warm", subject: "", body: "" }] }]);
 
+  // Per-variant on-demand generation: tone -> subject/body/CTA for that one variant.
+  const [genning, setGenning] = useState<string | null>(null);
+  const genVariant = async (offerIdx: number, varIdx: number) => {
+    const off = offers[offerIdx]; const v = off.variants[varIdx];
+    setGenning(`${offerIdx}:${varIdx}`);
+    try {
+      const r = await fetch("/api/variant", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ segment: off.segment, tone: v.tone || "warm", context: `Segment: ${off.segment}` }),
+      });
+      const g = await r.json();
+      if (g && !g.error) {
+        setOffers((prev) => prev.map((o, i) => i !== offerIdx ? o : {
+          ...o, variants: o.variants.map((x, j) => j !== varIdx ? x : { ...x, subject: g.subject ?? x.subject, body: g.body ?? x.body, ctaText: g.ctaText ?? x.ctaText }),
+        }));
+      }
+    } catch { /* surface nothing fatal; user can retry */ }
+    setGenning(null);
+  };
+
   return (
     <div>
       <p style={{ fontSize: 11.5, color: C.t3, margin: "0 0 8px" }}>Edit any field; add/remove A/B variants and offers. Type <b>@</b> in a subject or body to insert a personalization attribute as <code>{"{{attribute}}"}</code>.</p>
@@ -79,16 +99,28 @@ export default function ContentEditor({ initial, attributes = [], onChange }: { 
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               {off.variants.map((v, k) => (
-                <div key={v.id || k} style={{ flex: 1, minWidth: 220, background: "#f9f8f4", borderRadius: 8, padding: 10 }}>
+                <div key={v.id || k} style={{ flex: 1, minWidth: 240, background: "#f9f8f4", borderRadius: 8, padding: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: C.amber }}>{String.fromCharCode(65 + k)}</span>
                     <input value={v.tone} onChange={(e) => updVar(k, { ...v, tone: e.target.value })} placeholder="tone" style={{ ...inp, fontSize: 11.5 }} />
+                    <button onClick={() => genVariant(i, k)} disabled={genning === `${i}:${k}`} title="Generate copy for this variant from its tone"
+                      style={{ fontSize: 11, padding: "3px 8px", borderRadius: 12, border: 0, background: C.purple, color: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}>
+                      {genning === `${i}:${k}` ? "…" : "Generate"}
+                    </button>
                     <button onClick={() => delVar(k)} style={{ border: 0, background: "transparent", color: C.t3, cursor: "pointer" }}>×</button>
                   </div>
                   <div style={{ marginBottom: 4 }}>
                     <MentionField value={v.subject} onChange={(nv) => updVar(k, { ...v, subject: nv })} attributes={attributes} placeholder="subject (type @ for attributes)" style={{ fontWeight: 600 }} />
                   </div>
                   <MentionField value={v.body} onChange={(nv) => updVar(k, { ...v, body: nv })} attributes={attributes} textarea placeholder="body (type @ for attributes)" style={{ minHeight: 56, resize: "vertical" }} />
+                  <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                    <input value={v.ctaText ?? ""} onChange={(e) => updVar(k, { ...v, ctaText: e.target.value })} placeholder="CTA text" style={{ ...inp, flex: 1, fontSize: 11.5 }} />
+                    <input value={v.ctaLink ?? ""} onChange={(e) => updVar(k, { ...v, ctaLink: e.target.value })} placeholder="CTA link (URL)" style={{ ...inp, flex: 2, fontSize: 11.5 }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center" }}>
+                    <input value={v.imageUrl ?? ""} onChange={(e) => updVar(k, { ...v, imageUrl: e.target.value })} placeholder="image URL" style={{ ...inp, flex: 1, fontSize: 11.5 }} />
+                    {v.imageUrl ? <img src={v.imageUrl} alt="" style={{ width: 34, height: 34, borderRadius: 4, objectFit: "cover" }} onError={(e) => ((e.currentTarget.style.display = "none"))} /> : null}
+                  </div>
                 </div>
               ))}
             </div>

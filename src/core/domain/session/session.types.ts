@@ -11,7 +11,7 @@ import type { ModelCallEvent } from "@core/observability/optimization-event.type
 export interface AuditEntry { at: number; action: string; detail?: string; }
 
 // Per-stage efficacy signal: explicit thumb + behavioural (edited?, #revisions).
-export interface StageRating { thumb?: "up" | "down"; edited: boolean; revisions: number; }
+export interface StageRating { thumb?: "up" | "down"; score?: number; edited: boolean; revisions: number; }
 
 // Each gated stage's output, accumulated as the marketer approves through them.
 export interface StageOutputs {

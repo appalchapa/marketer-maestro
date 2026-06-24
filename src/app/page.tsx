@@ -12,6 +12,7 @@ import PlanEditor from "./_components/PlanEditor";
 
 import { STAGES } from "@core/orchestration/stages";
 
+const RATING_LABELS: Record<number, string> = { 1: "Poor", 2: "Weak", 3: "Okay", 4: "Good", 5: "Excellent" };
 const C = { surface: "#fff", line: "rgba(0,0,0,.1)", t2: "#5f5e5a", t3: "#8a8980",
   purple: "#534ab7", green: "#0f6e56", amber: "#ba7517", red: "#a32d2d", blue: "#185fa5" };
 const card: React.CSSProperties = { background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, padding: 20, marginBottom: 16 };
@@ -39,7 +40,7 @@ export default function Home() {
   const [editedContent, setEditedContent] = useState<any[] | null>(null);
   const [editedAttribution, setEditedAttribution] = useState<any[] | null>(null);
   const [editedPlan, setEditedPlan] = useState<any | null>(null);
-  const [thumb, setThumb] = useState<"up" | "down" | undefined>(undefined);
+  const [score, setScore] = useState<number | undefined>(undefined);
   const [status, setStatus] = useState<Line[]>([]);
   const [fatal, setFatal] = useState<string | null>(null);
   const watchdog = useRef<any>(null);
@@ -104,12 +105,12 @@ export default function Home() {
     else if (k === "content" && editedContent) edited = { content: { offers: editedContent } };
     else if (k === "attribution" && editedAttribution) edited = { attribution: { params: editedAttribution } };
     else if (k === "plan" && editedPlan) edited = { plan: editedPlan };
-    runStream("/api/session/stage", { sessionId: session.id, action: "approve", edited, thumb });
-    setEditedSegments(null); setEditedFlows(null); setEditedContent(null); setEditedAttribution(null); setEditedPlan(null); setThumb(undefined);
+    runStream("/api/session/stage", { sessionId: session.id, action: "approve", edited, score });
+    setEditedSegments(null); setEditedFlows(null); setEditedContent(null); setEditedAttribution(null); setEditedPlan(null); setScore(undefined);
   };
   const revise = () => { if (feedback) { runStream("/api/session/stage", { sessionId: session.id, action: "revise", feedback }); setFeedback(""); } };
 
-  useEffect(() => { setThumb(undefined); }, [session?.stageIndex, session?.id]);
+  useEffect(() => { setScore(undefined); }, [session?.stageIndex, session?.id]);
   const cost = (s: any) => (s?.events || []).reduce((a: number, e: any) => a + (e.costUsd || 0), 0);
   const stageIdx = session?.stageIndex ?? 0;
   const curKey = STAGES[stageIdx]?.key;
@@ -204,18 +205,7 @@ export default function Home() {
 
       {session && (
         <div style={{ display: "flex", gap: 18, marginTop: 18, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <div style={{ ...card, width: 180, flexShrink: 0 }}>
-            <p style={label}>Progress</p>
-            {STAGES.map((st, i) => {
-              const done = session.done || i < stageIdx; const active = !session.done && i === stageIdx;
-              return (<div key={st.key} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 0", opacity: i > stageIdx && !session.done ? 0.4 : 1 }}>
-                <span style={{ width: 20, height: 20, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", background: done ? C.green : active ? C.purple : "#cfcdc4" }}>{done ? "✓" : i + 1}</span>
-                <span style={{ fontSize: 13.5, fontWeight: active ? 600 : 400 }}>{st.label}</span></div>);
-            })}
-            {session.done && <div style={{ marginTop: 10, padding: "8px 10px", background: "#e1f5ee", color: C.green, borderRadius: 8, fontSize: 12.5, fontWeight: 600 }}>All stages approved ✓</div>}
-          </div>
-
-          <div style={{ flex: 1, minWidth: 300 }}>
+          <div style={{ flex: "1 1 64%", minWidth: 320 }}>
             <div style={card}><p style={label}>Understood goal</p><p style={{ margin: 0, fontSize: 15 }}>{session.intent?.restated}</p></div>
             {!session.done && (() => {
               const wrap = (title: string, node: any) => <div style={card}><p style={{ fontSize: 11, fontWeight: 600, color: C.purple, textTransform: "uppercase", letterSpacing: ".06em", margin: "0 0 10px" }}>Stage {session.stageIndex + 1}: {title}</p>{node}</div>;
@@ -236,10 +226,16 @@ export default function Home() {
             {!session.done && (
               <div style={card}><p style={label}>Approve, or request a change to this stage</p>
                 <input style={input} value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="e.g. focus more on high-value customers" />
-                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 12, color: C.t3 }}>Rate this output:</span>
-                  <button onClick={() => setThumb(thumb === "up" ? undefined : "up")} style={{ border: `1px solid ${thumb === "up" ? C.green : C.line}`, background: thumb === "up" ? "#e1f5ee" : "#fff", borderRadius: 14, padding: "3px 10px", cursor: "pointer", fontSize: 13 }}>👍</button>
-                  <button onClick={() => setThumb(thumb === "down" ? undefined : "down")} style={{ border: `1px solid ${thumb === "down" ? C.red : C.line}`, background: thumb === "down" ? "#fceaea" : "#fff", borderRadius: 14, padding: "3px 10px", cursor: "pointer", fontSize: 13 }}>👎</button>
+                <div style={{ marginTop: 10 }}>
+                  <span style={{ fontSize: 12, color: C.t3 }}>Rate this output (1 = poor, 5 = excellent):</span>
+                  <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button key={n} onClick={() => setScore(score === n ? undefined : n)} title={RATING_LABELS[n]}
+                        style={{ width: 38, height: 34, borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600,
+                          border: `1px solid ${score === n ? C.purple : C.line}`, background: score === n ? "#eeedfe" : "#fff", color: score === n ? C.purple : C.t2 }}>{n}</button>
+                    ))}
+                    {score ? <span style={{ fontSize: 12, color: C.t2, alignSelf: "center", marginLeft: 4 }}>{RATING_LABELS[score]}</span> : null}
+                  </div>
                 </div>
                 <div style={{ marginTop: 12 }}>
                   <button style={btn(C.green, busy)} onClick={approve} disabled={busy}>Approve &amp; continue →</button>
@@ -249,9 +245,21 @@ export default function Home() {
             )}
           </div>
 
-          {/* Right side: LIVE status */}
-          <div style={{ width: 250, flexShrink: 0 }}>
-            <div style={card}><p style={label}>Live status</p><StatusPanel status={status} busy={busy} fatal={fatal} onRetry={() => (session ? approve() : start())} /></div>
+          {/* Right rail (~30%): Progress on top, Status below — stacked */}
+          <div style={{ flex: "1 1 28%", minWidth: 240, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={card}>
+              <p style={label}>Progress</p>
+              {STAGES.map((st, i) => {
+                const done = session.done || i < stageIdx; const active = !session.done && i === stageIdx;
+                return (<div key={st.key} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 0", opacity: i > stageIdx && !session.done ? 0.4 : 1 }}>
+                  <span style={{ width: 20, height: 20, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", background: done ? C.green : active ? C.purple : "#cfcdc4" }}>{done ? "✓" : i + 1}</span>
+                  <span style={{ fontSize: 13, fontWeight: active ? 600 : 400 }}>{st.label}</span></div>);
+              })}
+              {session.done && <div style={{ marginTop: 8, padding: "8px 10px", background: "#e1f5ee", color: C.green, borderRadius: 8, fontSize: 12.5, fontWeight: 600 }}>All stages approved ✓</div>}
+            </div>
+            {(busy || status.length > 1 || fatal) && (
+              <div style={card}><p style={label}>Live status</p><StatusPanel status={status} busy={busy} fatal={fatal} onRetry={() => (session ? approve() : start())} /></div>
+            )}
           </div>
         </div>
       )}

@@ -144,3 +144,24 @@ Word brief as a schedule table. Task ids are stable so dependencies survive edit
   as before and is the safe fallback if Upstash creds are absent.
 - Note: the example/flywheel store still uses files (capture-only, non-fatal on serverless);
   it will get a serverless adapter when cross-session learning is built.
+
+## 1.6.0 — Content variants: CTA + image fields, per-variant Generate
+
+- Content variants now carry ctaText, ctaLink, and imageUrl (shown in the editor with a small
+  image preview; included in the Word brief). CTA link / image URL are manual for now and will
+  be populated from the offer/asset catalogs via MCP in a later step.
+- Each variant has a "Generate" button: set a tone and generate subject/body/CTA for that single
+  variant on demand (new /api/variant endpoint + variant prompt), without regenerating the rest.
+
+## 1.7.0 — Granular feedback (1-5), Autonomous score, UI layout, A/B percent fix
+
+- Feedback: replaced thumbs up/down with a 1-5 rating scale (Poor..Excellent) per stage.
+- Observe: Agents/Components now show average rating (x/5) and a computed "Autonomous score"
+  (0-100%) per component — how independently the agent succeeded, blended from acceptance
+  (unedited), low revisions, and rating. Not AI self-grading; uses signals we already capture.
+  EfficacyPanel and per-session summaries updated to score-based display. Backward-compatible
+  with older sessions that only have thumb data (shown as "—").
+- UI: reworked Operate layout to ~70/30 — main editor on the left, right rail with Progress on
+  top and a collapsible Live Status below (status only appears while generating). Stacks on mobile.
+- Fix: A/B variant percentage input no longer shows an undeletable "0" or produces "050" when
+  typing; values clamp 0-100.

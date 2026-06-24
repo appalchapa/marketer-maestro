@@ -43,7 +43,9 @@ function AbEditor({ step, options, onChange }: { step: Step; options: VariantOpt
             {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
             {x.variantId && !options.some((o) => o.id === x.variantId) && <option value={x.variantId}>(removed variant)</option>}
           </select>
-          <input type="number" value={x.percent} onChange={(e) => set(i, { percent: Number(e.target.value) })} style={{ ...inp, width: 56 }} />
+          <input type="number" min={0} max={100} value={x.percent === 0 ? "" : x.percent}
+            onChange={(e) => { const n = e.target.value === "" ? 0 : Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)); set(i, { percent: n }); }}
+            placeholder="0" style={{ ...inp, width: 56 }} />
           <span style={{ fontSize: 11, color: C.t3 }}>%</span>
           <button onClick={() => del(i)} style={{ border: 0, background: "transparent", color: C.t3, cursor: "pointer" }}>×</button>
         </div>
