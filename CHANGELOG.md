@@ -177,3 +177,29 @@ Word brief as a schedule table. Task ids are stable so dependencies survive edit
   run; the pipeline downstream is unchanged. The brief text is transient (analyzed via the new
   /api/brief endpoint, never stored) — consistent with the read-in-place, store-nothing stance.
 - Mock provider handles brief analysis so the mode is fully testable offline.
+
+## 1.9.0 — Template preview: email client + SMS device simulation
+
+- New Preview panel under the Content stage ("Preview templates"): pick any content variant and
+  see it rendered inside faithful client/device chrome.
+  - Email: Gmail, Outlook, and Apple Mail frames, with desktop/mobile width toggle. Renders
+    subject, hero image, body, and CTA button.
+  - SMS: iPhone 17/16/15 and Galaxy S24/S23 device shells with correct iMessage/Android bubble
+    styling; body + link trimmed to SMS length.
+- One clean preview at a time with fast switching (no cluttered wall of thumbnails). A QA/QE panel
+  slot is reserved alongside for the next build (Brand / spam-language / clarity / CTA scoring).
+- Honest framing in-UI: this is layout preview chrome, not a pixel-accurate deliverability test.
+- Pure client-side rendering of existing variant data — no new API, no model calls, nothing stored.
+
+## 1.10.0 — Per-variant Preview & QA modal, richer email render, AI QA/QE engine
+
+- Each content variant now has a "Preview" button that opens a modal with a rich rendering + AI QA
+  side by side. Replaces the earlier stage-level preview panel (removed).
+- Richer email render: brand top bar, logo header, hero image (placeholder if none), headline with
+  accent underline, varied typography, CTA button, footer nav + social, and a legal footer (address,
+  unsubscribe/preferences/privacy, copyright) at small grey print. Configurable brand (name, primary
+  and accent colors) live in the modal. Still framed honestly as layout preview chrome.
+- SMS render unchanged (iPhone 17/16/15, Galaxy S24/S23 shells), now inside the modal.
+- New AI QA/QE engine (/api/qa): scores a variant on brand voice, spam safety, clarity, CTA strength,
+  and subject quality (0-100) with an overall score and specific actionable flags. Honestly framed as
+  an AI rubric assessment, not a deliverability guarantee. Mock provider scores offline for testing.

@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import PreviewModal from "./Preview";
 
 const mkId = () => "v_" + Math.random().toString(16).slice(2, 10);
 type Variant = { id?: string; tone: string; subject: string; body: string; ctaText?: string; ctaLink?: string; imageUrl?: string };
 type Offer = { segment: string; variants: Variant[] };
-const C = { purple: "#534ab7", amber: "#ba7517", t3: "#8a8980", line: "rgba(0,0,0,.12)" };
+const C = { purple: "#534ab7", amber: "#ba7517", t3: "#8a8980", line: "rgba(0,0,0,.12)", blue: "#185fa5" };
 const inp: React.CSSProperties = { fontSize: 12.5, padding: "4px 7px", borderRadius: 6, border: `1px solid ${C.line}`, width: "100%", boxSizing: "border-box" };
 
 // Pure helpers (unit-tested): detect an "@query" ending at the caret, and
@@ -64,6 +65,7 @@ export default function ContentEditor({ initial, attributes = [], onChange }: { 
 
   // Per-variant on-demand generation: tone -> subject/body/CTA for that one variant.
   const [genning, setGenning] = useState<string | null>(null);
+  const [previewVar, setPreviewVar] = useState<Variant | null>(null);
   const genVariant = async (offerIdx: number, varIdx: number) => {
     const off = offers[offerIdx]; const v = off.variants[varIdx];
     setGenning(`${offerIdx}:${varIdx}`);
@@ -107,6 +109,10 @@ export default function ContentEditor({ initial, attributes = [], onChange }: { 
                       style={{ fontSize: 11, padding: "3px 8px", borderRadius: 12, border: 0, background: C.purple, color: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}>
                       {genning === `${i}:${k}` ? "…" : "Generate"}
                     </button>
+                    <button onClick={() => setPreviewVar(v)} title="Preview this variant as email/SMS with AI QA"
+                      style={{ fontSize: 11, padding: "3px 8px", borderRadius: 12, border: `1px solid ${C.blue}`, background: "#fff", color: C.blue, cursor: "pointer", whiteSpace: "nowrap" }}>
+                      Preview
+                    </button>
                     <button onClick={() => delVar(k)} style={{ border: 0, background: "transparent", color: C.t3, cursor: "pointer" }}>×</button>
                   </div>
                   <div style={{ marginBottom: 4 }}>
@@ -129,6 +135,7 @@ export default function ContentEditor({ initial, attributes = [], onChange }: { 
         );
       })}
       <button onClick={addOffer} style={{ fontSize: 13, padding: "8px 14px", borderRadius: 18, border: `1px dashed ${C.purple}`, background: "transparent", color: C.purple, cursor: "pointer" }}>+ Add offer</button>
+      {previewVar && <PreviewModal variant={previewVar} onClose={() => setPreviewVar(null)} />}
     </div>
   );
 }

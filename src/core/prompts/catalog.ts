@@ -67,6 +67,16 @@ export const PROMPTS: Record<string, PromptEntry> = {
       '6-9 tasks covering implementing segments, writing/approving content, building flows, configuring attribution, QA, and launch. ' +
       'Use realistic owners (e.g. Marketing Ops, Content, Analytics, QA) and durations in days.',
   },
+  qa: {
+    version: "qa@v1",
+    system: "You are a pre-send marketing QA reviewer. You assess one message and reply with ONLY JSON.",
+    template:
+      'Subject: "{subject}"\nBody: "{body}"\nCTA: "{ctaText}"\n\n' +
+      'Assess this message and return JSON: { "scores": { "brand": 0-100, "spam": 0-100, ' +
+      '"clarity": 0-100, "cta": 0-100, "subject": 0-100 }, "overall": 0-100, "flags": [string] }. ' +
+      'spam = how SAFE from spam-filter language (higher is safer). flags = short, specific, ' +
+      'actionable issues (e.g. "Subject uses ALL CAPS - spam risk", "CTA is vague"). At most 5 flags.',
+  },
   variant: {
     version: "variant@v1",
     system: "You write a single marketing message variant in a specified tone. JSON only.",

@@ -1,6 +1,6 @@
 {
   "name": "marketer-maestro",
-  "version": "1.8.0",
+  "version": "1.10.0",
   "private": true,
   "description": "An AI marketing strategist you co-create with \u2014 plus a glass-box console for cost, quality and traces.",
   "scripts": {

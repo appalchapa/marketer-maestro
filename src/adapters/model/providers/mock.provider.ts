@@ -86,6 +86,23 @@ export class MockProvider implements ModelProvider {
             { tone: "apologetic", subject: "Let's make this right", body: "We're sorry — here's priority support and a credit." },
             { tone: "reassuring", subject: "We're on it", body: "Your issue matters; here's how we're helping." } ] },
         ]});
+      case "qa": {
+        const m = /Subject: "([^"]*)"\s*\nBody: "([^"]*)"\s*\nCTA: "([^"]*)"/.exec(req.prompt);
+        const content = m ? `${m[1]} ${m[2]} ${m[3]}` : "";
+        const allCaps = /[A-Z]{4,}/.test(content);
+        const hasFree = /\b(free|act now|winner|prize)\b|!!!/i.test(content);
+        const spam = allCaps || hasFree ? 58 : 86;
+        const weakCta = m ? !/\b(get|start|claim|see|join|shop|upgrade|buy|try|save)\b/i.test(m[3]) : true;
+        const flags: string[] = [];
+        if (allCaps) flags.push("Contains ALL-CAPS words — spam-filter risk.");
+        if (hasFree) flags.push("Promotional trigger words detected — may affect deliverability.");
+        if (weakCta) flags.push("CTA verb is weak — lead with an action word.");
+        return JSON.stringify({
+          scores: { brand: 82, spam, clarity: 88, cta: weakCta ? 64 : 85, subject: allCaps ? 60 : 84 },
+          overall: allCaps || hasFree ? 70 : 86,
+          flags: flags.length ? flags : ["No major issues detected."],
+        });
+      }
       case "variant": {
         const toneMatch = /Tone:\s*([^\n]+)/.exec(req.prompt);
         const tone = (toneMatch ? toneMatch[1] : "warm").trim();
