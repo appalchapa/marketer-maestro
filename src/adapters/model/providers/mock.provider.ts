@@ -28,6 +28,21 @@ export class MockProvider implements ModelProvider {
   private jsonFor(req: ModelRequest): string {
     const attrs = this.attrsFrom(req.prompt);
     switch (req.component) {
+      case "brief":
+        return JSON.stringify({
+          goalText: "Win back recently churned customers with a targeted retention offer",
+          vertical: "Telecom",
+          attributes: ["tenure", "last_active_date", "plan_type", "monthly_spend"],
+          questions: [
+            "Who is the primary audience — all churned customers, or a specific segment?",
+            "What is the success metric and target (e.g. reactivation rate)?",
+            "Is there a budget or timeframe for this campaign?",
+          ],
+          suggestions: [
+            "The brief mentions a discount but no urgency — consider a deadline-driven flow.",
+            "Reads like a retention play; focus segments on recently lapsed, high-value customers.",
+          ],
+        });
       case "intent":
         return JSON.stringify({ goalType: "reduce churn", kpi: "churn rate", magnitude: "10%", timeframe: "2 months", focus: "retention", restated: "Cut customer churn by 10% within two months." });
       case "strategy":

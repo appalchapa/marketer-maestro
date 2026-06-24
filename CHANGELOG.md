@@ -165,3 +165,15 @@ Word brief as a schedule table. Task ids are stable so dependencies survive edit
   top and a collapsible Live Status below (status only appears while generating). Stacks on mobile.
 - Fix: A/B variant percentage input no longer shows an undeletable "0" or produces "050" when
   typing; values clamp 0-100.
+
+## 1.8.0 — Campaign-brief entry mode (second front door)
+
+- The start screen now offers two entry modes: "Start from a goal" (existing) and "Start from a
+  campaign brief" (new). In brief mode the user pastes a brief (or uploads .txt/.md; Word & PDF
+  coming soon), and the Maestro analyzes it into an editable understood intent (goal, industry,
+  inferred attributes), a short list of clarifying questions with answer inputs, proactive
+  suggestions, and a 1-5 rating of the understanding.
+- Answered clarifying questions are folded into the goal as context so they actually shape the
+  run; the pipeline downstream is unchanged. The brief text is transient (analyzed via the new
+  /api/brief endpoint, never stored) — consistent with the read-in-place, store-nothing stance.
+- Mock provider handles brief analysis so the mode is fully testable offline.

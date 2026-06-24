@@ -34,6 +34,29 @@ export default function Home() {
   const [attributes, setAttributes] = useState<string[]>([]);
   const [attrMode, setAttrMode] = useState<"paste" | "upload" | "mcp">("paste");
   const [pasteText, setPasteText] = useState("");
+  // Brief entry mode (second front door): analyze a campaign brief into editable intent + Q&A + suggestions.
+  const [entryMode, setEntryMode] = useState<"goal" | "brief">("goal");
+  const [briefText, setBriefText] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [brief, setBrief] = useState<null | { goalText: string; vertical: string; attributes: string[]; questions: string[]; suggestions: string[] }>(null);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [briefScore, setBriefScore] = useState<number | undefined>(undefined);
+
+  const analyzeBriefText = async () => {
+    if (!briefText.trim()) return;
+    setAnalyzing(true); setBrief(null); setAnswers({});
+    try {
+      const r = await fetch("/api/brief", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ briefText }) });
+      const a = await r.json();
+      if (a && !a.error) {
+        setBrief(a);
+        setGoalText(a.goalText || goalText);
+        setVertical(a.vertical || vertical);
+        if (Array.isArray(a.attributes) && a.attributes.length) setAttributes(a.attributes);
+      } else { alert(a?.error || "Could not analyze the brief — try pasting more detail."); }
+    } catch { alert("Could not analyze the brief — please try again."); }
+    setAnalyzing(false);
+  };
   const [busy, setBusy] = useState(false);
   const [editedSegments, setEditedSegments] = useState<any[] | null>(null);
   const [editedFlows, setEditedFlows] = useState<any[] | null>(null);
@@ -85,7 +108,17 @@ export default function Home() {
     }
   }
 
-  const start = () => runStream("/api/session/start", { username, goalText, vertical, attributes });
+  const start = () => {
+    // In brief mode, fold any answered clarifying questions into the goal so they actually shape the run.
+    let goal = goalText;
+    if (entryMode === "brief" && brief) {
+      const qa = brief.questions
+        .map((q, i) => (answers[i]?.trim() ? `${q} ${answers[i].trim()}` : null))
+        .filter(Boolean).join(" ");
+      if (qa) goal = `${goalText}. Context: ${qa}`;
+    }
+    runStream("/api/session/start", { username, goalText: goal, vertical, attributes });
+  };
   const MESSAGE = ["Email", "SMS", "Push", "In-app", "WhatsApp"];
   const abError = (flows: any[]): string | null => {
     for (const f of flows || []) for (const st of f.steps || []) {
@@ -142,10 +175,76 @@ export default function Home() {
         <div style={{ ...card, marginTop: 18 }}>
           <p style={label}>Username</p>
           <input style={input} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. ganesha" onBlur={() => loadHistory(username)} />
+
+          <div style={{ display: "flex", gap: 6, marginTop: 16 }}>
+            {([["goal", "Start from a goal"], ["brief", "Start from a campaign brief"]] as const).map(([m, lbl]) => (
+              <button key={m} onClick={() => setEntryMode(m)} style={{ padding: "7px 14px", borderRadius: 18, fontSize: 13, cursor: "pointer",
+                border: `1px solid ${entryMode === m ? C.purple : "rgba(0,0,0,.18)"}`, background: entryMode === m ? "#eeedfe" : "#fff", color: entryMode === m ? C.purple : C.t2, fontWeight: entryMode === m ? 600 : 400 }}>{lbl}</button>
+            ))}
+          </div>
+
+          {entryMode === "brief" && (
+            <div style={{ marginTop: 14 }}>
+              <p style={label}>Campaign brief <span style={{ textTransform: "none", fontWeight: 400, color: C.t3 }}>(paste below — the brief is analyzed, not stored)</span></p>
+              <textarea style={{ ...input, minHeight: 130, resize: "vertical" }} value={briefText} onChange={(e) => setBriefText(e.target.value)}
+                placeholder="Paste your campaign brief here — objective, audience, offer, timing, channels, anything you have." />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                <button style={btn(C.purple, analyzing || !briefText.trim())} onClick={analyzeBriefText} disabled={analyzing || !briefText.trim()}>{analyzing ? "Analyzing…" : "Analyze brief"}</button>
+                <label style={{ fontSize: 12.5, color: C.t3, cursor: "pointer" }}>
+                  <input type="file" accept=".txt,.md" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { setBriefText(await f.text()); } catch { alert("Could not read that file."); } }} />
+                  <span style={{ textDecoration: "underline" }}>or upload .txt / .md</span>
+                </label>
+                <span style={{ fontSize: 12, color: C.t3 }}>Word & PDF coming soon</span>
+              </div>
+
+              {brief && (
+                <div style={{ marginTop: 14, padding: 14, background: "#f9f8f4", borderRadius: 10, border: `1px solid ${C.line}` }}>
+                  <p style={{ ...label, marginTop: 0 }}>What I understood from your brief</p>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 200 }}><p style={{ fontSize: 11, color: C.t3, margin: "0 0 4px" }}>Goal</p>
+                      <input style={input} value={goalText} onChange={(e) => setGoalText(e.target.value)} /></div>
+                    <div style={{ flex: 1, minWidth: 140 }}><p style={{ fontSize: 11, color: C.t3, margin: "0 0 4px" }}>Industry</p>
+                      <input style={input} value={vertical} onChange={(e) => setVertical(e.target.value)} /></div>
+                  </div>
+                  {brief.questions.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <p style={{ fontSize: 12.5, fontWeight: 600, color: C.amber, margin: "0 0 6px" }}>A few questions to sharpen the strategy</p>
+                      {brief.questions.map((q, i) => (
+                        <div key={i} style={{ marginBottom: 8 }}>
+                          <p style={{ fontSize: 13, margin: "0 0 3px", color: C.t2 }}>{q}</p>
+                          <input style={{ ...input, fontSize: 13 }} value={answers[i] ?? ""} placeholder="your answer (optional)"
+                            onChange={(e) => setAnswers((p) => ({ ...p, [i]: e.target.value }))} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {brief.suggestions.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <p style={{ fontSize: 12.5, fontWeight: 600, color: C.purple, margin: "0 0 6px" }}>Suggestions</p>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>{brief.suggestions.map((sug, i) => <li key={i} style={{ fontSize: 13, color: C.t2, marginBottom: 3 }}>{sug}</li>)}</ul>
+                    </div>
+                  )}
+                  <div style={{ marginTop: 12 }}>
+                    <span style={{ fontSize: 12, color: C.t3 }}>Rate this understanding (1 = poor, 5 = excellent):</span>
+                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button key={n} onClick={() => setBriefScore(briefScore === n ? undefined : n)} title={RATING_LABELS[n]}
+                          style={{ width: 36, height: 32, borderRadius: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 600,
+                            border: `1px solid ${briefScore === n ? C.purple : C.line}`, background: briefScore === n ? "#eeedfe" : "#fff", color: briefScore === n ? C.purple : C.t2 }}>{n}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {entryMode === "goal" && (
           <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
             <div style={{ flex: 1 }}><p style={label}>Industry</p><input style={input} value={vertical} onChange={(e) => setVertical(e.target.value)} /></div>
             <div style={{ flex: 2 }}><p style={label}>Goal</p><input style={input} value={goalText} onChange={(e) => setGoalText(e.target.value)} /></div>
           </div>
+          )}
 
           <div style={{ marginTop: 14 }}>
             <p style={label}>Customer attributes <span style={{ textTransform: "none", fontWeight: 400, color: C.t3 }}>(names only — the system never sees real customer data)</span></p>
@@ -198,7 +297,7 @@ export default function Home() {
               </div>
             )}
           </div>
-          <div style={{ marginTop: 16 }}><button style={btn(C.purple, busy || !username)} onClick={start} disabled={busy || !username}>{busy ? "Working…" : "Start strategy session"}</button></div>
+          <div style={{ marginTop: 16 }}><button style={btn(C.purple, busy || !username || (entryMode === "brief" && !brief))} onClick={start} disabled={busy || !username || (entryMode === "brief" && !brief)}>{busy ? "Working…" : entryMode === "brief" && !brief ? "Analyze the brief first" : "Start strategy session"}</button></div>
           {(busy || status.length > 1 || fatal) && <div style={{ marginTop: 16 }}><StatusPanel status={status} busy={busy} fatal={fatal} onRetry={start} /></div>}
         </div>
       )}

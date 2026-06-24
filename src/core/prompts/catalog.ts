@@ -4,6 +4,17 @@
 export interface PromptEntry { version: string; system: string; template: string; }
 
 export const PROMPTS: Record<string, PromptEntry> = {
+  brief: {
+    version: "brief@v1",
+    system: "You analyze a marketing campaign brief and extract a structured plan. Reply with ONLY JSON.",
+    template:
+      'Campaign brief:\n"""\n{briefText}\n"""\n\n' +
+      'Extract and return JSON with keys: goalType, vertical, attributes (array of audience/personalization ' +
+      'signals you can infer), questions (array of clarifying questions where the brief is vague or missing ' +
+      'key info like target audience, success metric, timeframe, or offer), suggestions (array of short ' +
+      'proactive recommendations to strengthen the campaign). Use "goalText" for a one-line goal. ' +
+      'Keep questions and suggestions to at most 4 each, concise.',
+  },
   intent: {
     version: "intent@v1",
     system: "You convert a marketer's goal into a compact JSON target. Reply with ONLY JSON.",
